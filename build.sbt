@@ -1,15 +1,10 @@
 name := "neo4j-scala-client"
-organization := "me.jeffmay"
-organizationName := "Jeff May"
+organization := "com.rallyhealth"
+organizationName := "Rally Health"
 
-version := "0.1.0"
 scalaVersion := "2.11.7"
 
 licenses += ("Apache-2.0", url("http://opensource.org/licenses/apache-2.0"))
-
-// Publish to https://bintray.com/jeffmay/maven
-bintraySettings
-bintrayPublishSettings
 
 // Don't publish tests.jar
 publishArtifact in Test := false
@@ -23,7 +18,6 @@ val scalacheckVersion = "1.12.5"
 val scalatestVersion = "3.0.0-M10"
 
 resolvers ++= Seq(
-  "jeffmay" at "http://dl.bintray.com/jeffmay/maven",
   "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases/"
 )
 
