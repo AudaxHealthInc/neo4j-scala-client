@@ -1,14 +1,15 @@
-// Add the resolvers
-resolvers ++= Seq(
-  Classpaths.sbtPluginReleases,
-  Resolver.url(
-    "bintray-sbt-plugin-releases",
-    url("http://dl.bintray.com/content/sbt/sbt-plugin-releases")
-  )(Resolver.ivyStylePatterns)
-)
+// See https://wiki.audaxhealth.com/display/ENG/Build+Structure#BuildStructure-Localconfiguration
+credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
 
-// Allows publishing to bintray
-addSbtPlugin("me.lessis" % "bintray-sbt" % "0.2.1")
+// Add the resolvers
+resolvers += Resolver.url(
+  "Rally Plugin Releases", 
+  url("https://artifacts.werally.in/artifactory/ivy-plugins-release")
+)(Resolver.ivyStylePatterns)
+
+// Add Rally plugins
+addSbtPlugin("com.rallyhealth" %% "rally-versioning" % "latest.integration")
+addSbtPlugin("com.rallyhealth" %% "rally-sbt-plugin" % "0.4.0")
 
 // The current versions of these are failing because of this bug:
 // https://github.com/scoverage/sbt-coveralls/issues/73
