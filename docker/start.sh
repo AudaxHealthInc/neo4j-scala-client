@@ -38,8 +38,10 @@ echo ""
 export NEO4J_HOST="$(docker-machine ip ${DOCKER_ENV})"
 NEW_URL="http://$NEO4J_HOST:7474"
 if [[ "$NEO4J_URL" == "$NEW_URL" ]]; then
-    echo "NEO4J_URL is set correctly to $NEW_URL"
+    echo "NEO4J_URL is correctly set to $NEW_URL"
 else
-    echo "export NEO4J_URL=\"$NEW_URL"
+    echo "Copy the following environment variables into this shell to run:"
+    echo ""
+    echo "export NEO4J_URL=\"$NEW_URL\""
     export NEO4J_URL="$NEW_URL"
 fi
