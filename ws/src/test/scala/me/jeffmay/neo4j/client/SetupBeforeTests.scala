@@ -1,6 +1,5 @@
 package me.jeffmay.neo4j.client
 
-import me.jeffmay.neo4j.client.errors.UnexpectedStatusException
 import me.jeffmay.neo4j.client.ws.{TestWSClient, TestWSNeo4jClient}
 import me.jeffmay.util.akka.TestAkkaScheduler
 import me.jeffmay.util.{RunHooksBlockingInOrder, RunStartupHooks}

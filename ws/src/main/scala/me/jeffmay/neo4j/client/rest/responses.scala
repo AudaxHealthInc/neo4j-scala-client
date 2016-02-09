@@ -11,7 +11,8 @@ import scala.util.{Failure, Success, Try}
 /**
   * The raw json body from the API as a case class model filled with options.
   *
-  * Represents the different result types from [[http://neo4j.com/docs/stable/rest-api-transactional.html]]
+  * Represents the different result types returned from the
+  * <a href="http://neo4j.com/docs/stable/rest-api-transactional.html">Transaction API</a>
   */
 private[client] case class RawTxnResponse(
   results: Seq[RawStatementResult] = Seq.empty,

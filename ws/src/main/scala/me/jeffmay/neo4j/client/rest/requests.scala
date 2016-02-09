@@ -1,6 +1,6 @@
 package me.jeffmay.neo4j.client.rest
 
-import me.jeffmay.neo4j.client.cypher.Statement
+import me.jeffmay.neo4j.client.cypher.{CypherProps, Statement}
 import play.api.libs.json.{JsObject, Json, OWrites, Writes}
 
 import scala.language.implicitConversions
@@ -40,8 +40,8 @@ private[client] object RawRequestStatement {
 
   def fromCypherStatement(statement: Statement): RawRequestStatement = {
     new RawRequestStatement(
-      statement.statement,
-      OWrites.map[JsObject].writes(statement.parameters),
+      statement.template,
+      OWrites.map[CypherProps].writes(statement.parameters),
       statement.includeStats
     )
   }

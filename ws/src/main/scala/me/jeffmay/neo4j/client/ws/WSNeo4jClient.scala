@@ -1,9 +1,10 @@
 package me.jeffmay.neo4j.client.ws
 
 import akka.actor.Scheduler
+import me.jeffmay.neo4j.client
 import me.jeffmay.neo4j.client._
 import me.jeffmay.neo4j.client.cypher.Statement
-import me.jeffmay.neo4j.client.errors.{StatusCodeError, UnexpectedStatusException}
+import me.jeffmay.neo4j.client.StatusCodeException
 import me.jeffmay.neo4j.client.rest._
 import me.jeffmay.util.ws.{ProxyWSClient, TimeoutWSRequest}
 import play.api.libs.json.{JsValue, Json}
@@ -140,14 +141,14 @@ object WSNeo4jClient {
     }
   }
 
-  def statusCodeException(request: WSRequest, requestBody: Option[JsValue], response: WSResponse, errors: Seq[Neo4jError]): StatusCodeError = {
-    new StatusCodeError(
+  def statusCodeException(request: WSRequest, requestBody: Option[JsValue], response: WSResponse, errors: Seq[Neo4jError]): client.StatusCodeException = {
+    new StatusCodeException(
       request.method,
       request.url,
       flattenHeaders(request.headers),
-      requestBody,
+      requestBody.fold("")(Json.prettyPrint),
       response.status,
-      response.json,
+      Try(response.json).map(Json.prettyPrint) getOrElse response.body,
       errors
     )
   }

@@ -1,20 +1,26 @@
-package me.jeffmay.neo4j.client.errors
-
-import me.jeffmay.neo4j.client.Neo4jError
-import play.api.libs.json.{JsValue, Json}
+package me.jeffmay.neo4j.client
 
 import scala.util.control.NoStackTrace
+import Exceptions._
 
-object ResponseError {
-  private[errors] val indent = 4
-  private[errors] val shim = String.valueOf(Array.fill(indent)(' '))
+/**
+  * Common static exception helpers.
+  */
+private[client] object Exceptions {
+
+  final val indent = 4
+  final val shim = String.valueOf(Array.fill(indent)(' '))
 
   /**
     * Prepends the shim to every line of the given string (including the first).
     */
-  private[errors] def shim(msg: String): String = msg.split('\n').mkString(shim, s"\n$shim", "\n")
+  def shim(msg: String): String = msg.split('\n').mkString(shim, s"\n$shim", "\n")
 }
-sealed abstract class ResponseError(
+
+/**
+  * An exception used to fail futures if there is an error with the request or response from the REST API.
+  */
+sealed abstract class RestResponseException(
   val requestMethod: String,
   val requestUrl: String,
   val requestHeaders: Seq[(String, String)],
@@ -23,7 +29,6 @@ sealed abstract class ResponseError(
   val responseBodyAsString: String,
   message: String
 ) extends Exception({
-  import ResponseError._
   val indentedResponseHeaders = requestHeaders.map { case (k, v) => s"$shim$k: $v" }.mkString("\n")
   s"""FAILED to complete request.
     |$requestMethod $requestUrl
@@ -33,10 +38,14 @@ sealed abstract class ResponseError(
     |$indentedResponseHeaders
     |Received response with status code $responseStatus and response body:
     |${shim(responseBodyAsString)}
-    |Reason: ${shim(message)}
+    |Reason:
+    |${shim(message)}
   """.stripMargin
 }) with NoStackTrace
 
+/**
+  * The server responded with an unexpected HTTP status code.
+  */
 class UnexpectedStatusException(
   requestMethod: String,
   requestUrl: String,
@@ -44,7 +53,7 @@ class UnexpectedStatusException(
   bodyAsString: String,
   responseStatus: Int,
   responseBodyAsString: String
-) extends ResponseError(
+) extends RestResponseException(
   requestMethod,
   requestUrl,
   requestHeaders,
@@ -54,23 +63,25 @@ class UnexpectedStatusException(
   "Unexpected response status."
 )
 
-case class StatusCodeError(
+/**
+  * The server responded with one or more [[Neo4jError]]s.
+  */
+case class StatusCodeException(
   override val requestMethod: String,
   override val requestUrl: String,
   override val requestHeaders: Seq[(String, String)],
-  requestBody: Option[JsValue],
+  requestBody: String,
   override val responseStatus: Int,
-  responseBody: JsValue,
+  responseBody: String,
   errors: Seq[Neo4jError]
-) extends ResponseError(
+) extends RestResponseException(
   requestMethod,
   requestUrl,
   requestHeaders,
-  requestBody.fold("")(Json.prettyPrint),
+  requestBody,
   responseStatus,
-  Json.prettyPrint(responseBody),
+  responseBody,
   {
-    import ResponseError._
     val errorMessages = errors.map { e =>
       Array(s"Code: ${e.status.code}", s"Description: ${e.status.description}", s"Message:\n${shim(e.message)}")
     }

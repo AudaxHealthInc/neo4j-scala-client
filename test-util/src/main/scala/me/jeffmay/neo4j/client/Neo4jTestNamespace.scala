@@ -1,8 +1,7 @@
 package me.jeffmay.neo4j.client
 
-import me.jeffmay.neo4j.client.cypher.Statement
+import me.jeffmay.neo4j.client.cypher.{Cypher, Statement}
 import me.jeffmay.util.Namespace
-import play.api.libs.json.Json
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -11,7 +10,7 @@ object Neo4jTestNamespace {
   def cleanup(namespace: Namespace, client: Neo4jClient)(implicit ec: ExecutionContext): Future[Any] = {
     client.openAndCommitTxn(
       Statement("MATCH (n { ns: {props}.ns }) OPTIONAL MATCH (n)-[r]-() DELETE n, r",
-        Map("props" -> Json.obj("ns" -> namespace.value))
+        Map("props" -> Cypher.props("ns" -> namespace.value))
       )
     )
   }
