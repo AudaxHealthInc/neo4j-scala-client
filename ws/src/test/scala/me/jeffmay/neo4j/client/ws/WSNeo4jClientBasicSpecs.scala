@@ -1,11 +1,10 @@
 package me.jeffmay.neo4j.client.ws
 
 import me.jeffmay.neo4j.client._
-import me.jeffmay.neo4j.client.cypher.Statement
+import me.jeffmay.neo4j.client.cypher.{Cypher, Statement}
 import me.jeffmay.util.UniquePerClassNamespace
 import me.jeffmay.util.akka.TestGlobalAkka
 import org.scalatest._
-import play.api.libs.json.Json
 
 import scala.concurrent.{ExecutionContext, Future}
 
@@ -53,7 +52,7 @@ class WSNeo4jClientBasicSpecs extends fixture.AsyncWordSpec
         import fixture._
         val getAllNodes = Statement(
           "MATCH (n { ns: {props}.ns }) RETURN n",
-          Map("props" -> Json.obj("ns" -> namespace.value))
+          Map("props" -> Cypher.props("ns" -> namespace.value))
         )
         for {
           rsp <- client.openAndCommitTxn(getAllNodes)
@@ -109,7 +108,7 @@ class WSNeo4jClientBasicSpecs extends fixture.AsyncWordSpec
           for (((expected, actual), n) <- tests) {
             assertResultStats(
               expected,
-              s"stats for query #${n + 1} '${queries(n).statement}' did not have the expected stats") {
+              s"stats for query #${n + 1} '${queries(n).template}' did not have the expected stats") {
               actual.stats.get
             }
           }

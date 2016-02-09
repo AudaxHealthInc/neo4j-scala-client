@@ -1,6 +1,7 @@
 package me.jeffmay.neo4j.client
 
 import play.api.libs.json._
+import me.jeffmay.neo4j.client.cypher.Statement
 
 /**
   * A result from a single [[Statement]].

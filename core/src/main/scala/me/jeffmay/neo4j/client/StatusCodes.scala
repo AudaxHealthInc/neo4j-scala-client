@@ -6,7 +6,7 @@ import play.api.libs.json._
 import scala.collection.mutable
 
 /**
-  * @see http://neo4j.com/docs/stable/status-codes.html
+  * @see <a href="http://neo4j.com/docs/stable/status-codes.html">Status Codes Documentation</a>
   */
 object StatusCodes {
 

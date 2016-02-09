@@ -4,7 +4,20 @@ import play.api.libs.json.{JsString, Writes}
 
 import scala.util.{Failure, Success, Try}
 
-case class TxnRef(url: String, domain: String, id: Int)
+/**
+  * A reference to an open transaction.
+  *
+  * @see <a href="http://neo4j.com/docs/stable/rest-api-transactional.html">Transaction Documentation</a>
+  *
+  * @note Open transactions are not shared among members of an HA cluster.
+  *       Therefore, if you use this endpoint in an HA cluster, you must ensure that
+  *       all requests for a given transaction are sent to the same Neo4j instance.
+  *
+  * @param url the URL to commit the transaction
+  * @param host the host address of the Neo4j instance on which the transaction is open
+  * @param id the integer id of the transaction
+  */
+case class TxnRef(url: String, host: String, id: Int)
 object TxnRef {
 
   implicit val jsonWriter: Writes[TxnRef] = Writes(r => JsString(r.url))

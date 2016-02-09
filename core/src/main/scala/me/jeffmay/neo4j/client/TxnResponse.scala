@@ -1,5 +1,6 @@
 package me.jeffmay.neo4j.client
 
+import me.jeffmay.neo4j.client.cypher.Statement
 import org.joda.time.DateTime
 import play.api.libs.json._
 

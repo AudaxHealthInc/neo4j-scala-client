@@ -1,8 +1,7 @@
 package me.jeffmay.neo4j.client
 
-import me.jeffmay.neo4j.client.cypher.Statement
+import me.jeffmay.neo4j.client.cypher.{Cypher, Statement}
 import me.jeffmay.util.Namespace
-import play.api.libs.json.Json
 
 object FixtureQueries extends FixtureQueries
 trait FixtureQueries {
@@ -15,7 +14,7 @@ trait FixtureQueries {
     def query(id: String, includeStats: Boolean = true)(implicit ns: Namespace): Statement = {
       Statement(
         "CREATE (n { ns: {props}.ns, id: {props}.id })",
-        Map("props" -> Json.obj(
+        Map("props" -> Cypher.props(
           "id" -> id,
           "ns" -> ns.value
         )),
@@ -32,11 +31,11 @@ trait FixtureQueries {
       Statement(
         "MATCH (n { ns: {props}.ns, id: {props}.id }) SET n.id = {new}.id",
         Map(
-          "props" -> Json.obj(
+          "props" -> Cypher.props(
             "id" -> id,
             "ns" -> ns.value
           ),
-          "new" -> Json.obj(
+          "new" -> Cypher.props(
             "id" -> newId
           )
         ),
@@ -51,9 +50,9 @@ trait FixtureQueries {
   object AddLabel {
     def query(id: String, label: String, includeStats: Boolean = true)(implicit ns: Namespace): Statement = {
       Statement(
-        s"MATCH (n { ns: {props}.ns, id: {props}.id }) SET n :${cypher.Label(label)}",
+        s"MATCH (n { ns: {props}.ns, id: {props}.id }) SET n ${Cypher.label(label).getOrThrow.template}",
         Map(
-          "props" -> Json.obj(
+          "props" -> Cypher.props(
             "id" -> id,
             "ns" -> ns.value
           )
