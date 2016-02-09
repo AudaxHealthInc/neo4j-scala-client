@@ -6,4 +6,4 @@ if [[ "$DOCKER_ENV" == "" ]]; then
 fi
 
 echo "Stopping docker-machine '$DOCKER_ENV'"
-docker-machine stop neo4j-client
+docker-machine stop ${DOCKER_ENV}

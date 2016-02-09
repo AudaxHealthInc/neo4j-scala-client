@@ -1,12 +1,5 @@
 #!/usr/bin/env bash
 
-# Setup variables
-if [[ "$DOCKER_ENV" == "" ]]; then
-    export DOCKER_ENV="default"
-fi
-
-echo "Using docker-machine environment '$DOCKER_ENV'"
-
 # Verify that docker-machine is installed
 hash docker-machine &> /dev/null || {
     echo "docker-machine is required. Use the link below to download Docker Toolbox."
@@ -14,27 +7,23 @@ hash docker-machine &> /dev/null || {
     exit 1
 }
 
-# Check if environment already exists
-if [[ "$(docker-machine ls | grep "$DOCKER_ENV")" != "" ]]; then
-    echo "docker-machine env '$DOCKER_ENV' already exists!"
-    # TODO Offer to reinstall or enable it
-    exit 1
-fi
-
 OPTS=$@
 
+DEFAULT_DOCKER_DRIVER="virtualbox"
+DEFAULT_DOCKER_ENV="default"
+DEFAULT_NEO4J_VERSION="latest"
+
 function printUsage() {
-    echo "Usage: $0 -d | --driver DOCKER_DRIVER [-v | --version NEO4J_VERSION]"
+    echo "Usage: $0 [-dnv | --driver DOCKER_DRIVER --env DOCKER_ENV --version NEO4J_VERSION]"
     echo ""
-    echo "    -d, --driver (REQUIRED):"
-    echo "        The docker-machine driver (ex 'virtualbox') to use to create the '$DOCKER_ENV' env"
-    echo "    -v, --version (default: 'latest'):"
+    echo "    -d, --driver (default: \$DOCKER_DRIVER ($DOCKER_DRIVER) or '$DEFAULT_DOCKER_DRIVER'):"
+    echo "        The docker-machine driver to use to create the docker-machine environment"
+    echo "    -n, --env (default: \$DOCKER_ENV ($DOCKER_ENV) or '$DEFAULT_DOCKER_DRIVER'):"
+    echo "        The docker-machine environment name to create or reuse"
+    echo "    -v, --version (default: \$DOCKER_NEO4J_VERSION ($DOCKER_NEO4J_VERSION) or '$DEFAULT_NEO4J_VERSION'):"
     echo "        The version of the neo4j image to pull"
     echo ""
 }
-
-DOCKER_DRIVER=""
-NEO4J_VERSION="latest"
 
 while [[ $# > 0 ]]
 do
@@ -43,23 +32,24 @@ key="$1"
 case $key in
 
     -d|--driver)
-        DOCKER_DRIVER="$2"
-        shift
-        if [[ "$DOCKER_DRIVER" == "" ]]; then
-            echo "Empty argument for $key"
-            printUsage
-            exit 1
+        if [[ "$2" != "" ]]; then
+            DOCKER_DRIVER="$2"
         fi
+        shift
+    ;;
+
+    -n|--env)
+        if [[ "$2" != "" ]]; then
+            DOCKER_ENV="$2"
+        fi
+        shift
     ;;
 
     -v|--version)
-        NEO4J_VERSION="$2"
-        shift
-        if [[ "$NEO4J_VERSION" == "" ]]; then
-            echo "Empty argument for $key"
-            printUsage
-            exit 1
+        if [[ "$2" != "" ]]; then
+            NEO4J_VERSION="$2"
         fi
+        shift
     ;;
 
     *)
@@ -73,19 +63,37 @@ esac
 shift
 done
 
-# Verify that the driver is provided
+# Set the defaults
 if [[ "$DOCKER_DRIVER" == "" ]]; then
-    echo "Argument -d | --driver is required. Please see options from docker-machine:"
-    echo ""
-    echo $(docker-machine create --help | grep "\-\-driver")
-    exit 1
+    DOCKER_DRIVER=${DEFAULT_DOCKER_DRIVER}
+fi
+if [[ "$DOCKER_ENV" == "" ]]; then
+    DOCKER_ENV=${DEFAULT_DOCKER_ENV}
+fi
+if [[ "$NEO4J_VERSION" == "" ]]; then
+    NEO4J_VERSION=${DEFAULT_NEO4J_VERSION}
 fi
 
-# Create the docker machine environment
-docker-machine create -d ${DOCKER_DRIVER} ${DOCKER_ENV}
+# Log the operations
+echo "Use docker-machine environment '$DOCKER_ENV' to install Neo4j $NEO4J_VERSION."
 
-# Set the local environment
+# Create the docker machine environment if necessary
+if [[ "$(docker-machine ls | grep ${DOCKER_ENV})" == "" ]]; then
+    docker-machine create -d ${DOCKER_DRIVER} ${DOCKER_ENV}
+fi
+
+# Start machine if it isn't running
+if [[ "$(docker-machine status ${DOCKER_ENV})" != "Running" ]]; then
+    docker-machine start ${DOCKER_ENV}
+fi
+
+# Load the required environment variables
 eval "$(docker-machine env ${DOCKER_ENV})"
 
-# Get the latest docker image for neo4j
-docker pull neo4j:${NEO4J_VERSION}
+# Download the docker image for Neo4j
+if [[ "$(docker images | grep neo4j | grep ${NEO4J_VERSION})" ]]; then
+    echo "docker-machine env '$DOCKER_ENV' already has the neo4j $NEO4J_VERSION image available."
+else
+    docker pull neo4j:${NEO4J_VERSION}
+fi
+echo "Run docker/start.sh to start this Neo4j image."
