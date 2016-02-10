@@ -9,7 +9,7 @@ lazy val commonRootSettings = Seq(
 )
 
 lazy val root = (project in file("."))
-  .aggregate(core, testUtil, ws, wsTestUtil)
+  .aggregate(core, testUtil, ws, wsUtil, wsTestUtil)
   .settings(commonRootSettings ++ Seq(
     publish := {},
     publishArtifact := false
