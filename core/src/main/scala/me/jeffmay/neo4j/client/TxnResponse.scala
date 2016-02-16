@@ -1,11 +1,10 @@
 package me.jeffmay.neo4j.client
 
-import me.jeffmay.neo4j.client.cypher.Statement
+import me.jeffmay.neo4j.client.cypher.CypherStatement
 import org.joda.time.DateTime
-import play.api.libs.json._
 
 /**
-  * Represents the results of executing a batch of [[Statement]]s.
+  * Represents the results of executing a batch of [[CypherStatement]]s.
   */
 sealed trait TxnResponse {
 
@@ -37,12 +36,17 @@ sealed trait TxnResponse {
   def safeToRetry: Boolean = results.forall(_.data.isEmpty) && errors.forall(_.status.safeToRetry)
 
   /**
-    * The results of executing the [[Statement]]s returned in the same order as given.
+    * The statements that initiated the transaction.
+    */
+  def statements: Seq[CypherStatement]
+
+  /**
+    * The results of executing the [[CypherStatement]]s returned in the same order as given.
     */
   def results: Seq[StatementResult]
 
   /**
-    * All the errors encountered when executing the [[Statement]]s within a transaction.
+    * All the errors encountered when executing the [[CypherStatement]]s within a transaction.
     */
   def errors: Seq[Neo4jError]
 
@@ -51,49 +55,88 @@ sealed trait TxnResponse {
     */
   def openTxnInfo: Option[TxnInfo]
 }
-object TxnResponse {
 
-  implicit val jsonWriter: Writes[TxnResponse] = Writes {
-    case open: OpenedTxnResponse => OpenedTxnResponse.jsonWriter.writes(open)
-    case closed: CommittedTxnResponse => CommittedTxnResponse.jsonWriter.writes(closed)
-  }
+/**
+  * Represents a nicer interface for a response to a single [[CypherStatement]].
+  */
+sealed trait SingleStatementTxnResponse extends TxnResponse {
 
-  def prettyPrint(response: TxnResponse): String = {
-    val respAsJson = Json.prettyPrint(Json.toJson(response))
-    s"${response.getClass.getSimpleName}:\n$respAsJson"
+  /**
+    * The statement that initiated the transaction.
+    */
+  def statement: CypherStatement
+
+  final override def statements: Seq[CypherStatement] = Seq(statement)
+
+  /**
+    * Returns either the Right of the [[StatementResult]] or a Left of the [[Neo4jError]]s
+    */
+  def result: Either[Seq[Neo4jError], StatementResult] = results match {
+    case Seq() => Left(errors)
+    case Seq(single) => Right(single)
+    case many => throw new TooManyResultsException(statements, many)
   }
 }
 
 /**
-  * Represents an open transaction.
+  * Represents a transaction response that is still open.
   */
-case class OpenedTxnResponse(
+sealed trait OpenedTxnResponse extends TxnResponse {
+
+  /**
+    * The transaction info, needed to commit the transaction.
+    */
+  def transaction: TxnInfo
+
+  final override def openTxnInfo: Option[TxnInfo] = Some(transaction)
+}
+
+/**
+  * Represents an open transaction for a single statement.
+  */
+case class SingleOpenedTxnResponse(
+  statement: CypherStatement,
   results: Seq[StatementResult],
   transaction: TxnInfo,
   errors: Seq[Neo4jError]
-) extends TxnResponse {
+) extends OpenedTxnResponse
+  with SingleStatementTxnResponse
 
-  override def openTxnInfo: Option[TxnInfo] = Some(transaction)
-}
+/**
+  * Represents an open transaction containing any number of statements
+  */
+case class GenericOpenedTxnResponse(
+  statements: Seq[CypherStatement],
+  results: Seq[StatementResult],
+  transaction: TxnInfo,
+  errors: Seq[Neo4jError]
+) extends OpenedTxnResponse
 
-object OpenedTxnResponse {
-  implicit val jsonWriter: Writes[OpenedTxnResponse] = Json.writes[OpenedTxnResponse]
+/**
+  * Represents a transaction response that has been committed and closed.
+  */
+sealed trait CommittedTxnResponse extends TxnResponse {
+  final override def openTxnInfo: Option[TxnInfo] = None
 }
 
 /**
-  * Represents a closed and committed transaction.
+  * Represents a closed and committed transaction for a single statement.
   */
-case class CommittedTxnResponse(
+case class SingleCommittedTxnResponse(
+  statement: CypherStatement,
   results: Seq[StatementResult],
   errors: Seq[Neo4jError]
-) extends TxnResponse {
+) extends CommittedTxnResponse
+  with SingleStatementTxnResponse
 
-  override def openTxnInfo: Option[TxnInfo] = None
-}
-
-object CommittedTxnResponse {
-  implicit val jsonWriter: Writes[CommittedTxnResponse] = Json.writes[CommittedTxnResponse]
-}
+/**
+  * Represents a closed and committed transaction containing any number of statements.
+  */
+case class GenericCommittedTxnResponse(
+  statements: Seq[CypherStatement],
+  results: Seq[StatementResult],
+  errors: Seq[Neo4jError]
+) extends CommittedTxnResponse
 
 /**
   * Represents the transaction info
@@ -102,7 +145,3 @@ object CommittedTxnResponse {
   * @param expires when the transaction expires
   */
 case class TxnInfo(txn: TxnRef, expires: DateTime)
-
-object TxnInfo {
-  implicit val jsonWriter: Writes[TxnInfo] = Json.writes[TxnInfo]
-}

@@ -16,6 +16,10 @@ trait CypherWrites[-T, +V <: CypherValue] {
 
 object CypherWrites extends DefaultCypherWrites {
 
+  type Value[-T] = CypherWrites[T, CypherValue]
+  type Primitive[-T] = CypherWritesPrimitive[T]
+  type Props[-T] = CypherWritesProps[T]
+
   def apply[T, V <: CypherValue](writeFn: T => V): CypherWrites[T, V] = {
     new CypherWrites[T, V] {
       override def writes(value: T): V = writeFn(value)

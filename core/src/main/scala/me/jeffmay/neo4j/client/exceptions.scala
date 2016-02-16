@@ -1,5 +1,7 @@
 package me.jeffmay.neo4j.client
 
+import me.jeffmay.neo4j.client.cypher.CypherStatement
+
 import scala.util.control.NoStackTrace
 import Exceptions._
 
@@ -92,3 +94,11 @@ case class StatusCodeException(
     s"Encountered ${errors.size} error(s):\n$errorMessagesIndexed"
   }
 )
+
+/**
+  * The server responded with more results than expected.
+  */
+class TooManyResultsException(val statements: Seq[CypherStatement], val results: Seq[StatementResult])
+  extends RuntimeException({
+    s"Expected ${statements.size} result(s), but received ${results.size}."
+  })

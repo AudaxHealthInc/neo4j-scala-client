@@ -1,7 +1,5 @@
 package me.jeffmay.neo4j.client
 
-import play.api.libs.json.{JsString, Writes}
-
 import scala.util.{Failure, Success, Try}
 
 /**
@@ -19,8 +17,6 @@ import scala.util.{Failure, Success, Try}
   */
 case class TxnRef(url: String, host: String, id: Int)
 object TxnRef {
-
-  implicit val jsonWriter: Writes[TxnRef] = Writes(r => JsString(r.url))
 
   def parse(url: String): TxnRef = {
     def fail(message: String): Nothing = {
