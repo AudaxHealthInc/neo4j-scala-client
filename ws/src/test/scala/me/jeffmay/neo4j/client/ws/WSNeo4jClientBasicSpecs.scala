@@ -1,7 +1,7 @@
 package me.jeffmay.neo4j.client.ws
 
 import me.jeffmay.neo4j.client._
-import me.jeffmay.neo4j.client.cypher.{Cypher, Statement}
+import me.jeffmay.neo4j.client.cypher.{Cypher, CypherStatement}
 import me.jeffmay.util.UniquePerClassNamespace
 import me.jeffmay.util.akka.TestGlobalAkka
 import org.scalatest._
@@ -12,6 +12,8 @@ class WSNeo4jClientBasicSpecs extends fixture.AsyncWordSpec
   with Safety
   with AssertResultStats
   with UniquePerClassNamespace {
+
+  import ws.json.debug._
 
   override implicit def executionContext: ExecutionContext = ExecutionContext.global
 
@@ -50,7 +52,7 @@ class WSNeo4jClientBasicSpecs extends fixture.AsyncWordSpec
 
       "start with an empty unique namespace" in { fixture =>
         import fixture._
-        val getAllNodes = Statement(
+        val getAllNodes = CypherStatement(
           "MATCH (n { ns: {props}.ns }) RETURN n",
           Map("props" -> Cypher.props("ns" -> namespace.value))
         )
@@ -101,7 +103,7 @@ class WSNeo4jClientBasicSpecs extends fixture.AsyncWordSpec
           AddLabel.successResultStats
         )
         for {
-          rsp <- client.openAndCommitTxn(queries.head, queries.tail: _*)
+          rsp <- client.openAndCommitTxn(queries)
         } yield {
           assert(rsp.results.size === expectedResultStats.size)
           val tests = (expectedResultStats zip rsp.results).zipWithIndex

@@ -1,4 +1,4 @@
-package me.jeffmay.neo4j.client.rest
+package me.jeffmay.neo4j.client.ws.json.rest
 
 import play.api.libs.json.{JsValue, Json}
 

@@ -29,8 +29,12 @@ class CypherArray[T <: CypherPrimitive] private (override val value: Seq[T]) ext
   override type Value = Seq[T]
 }
 object CypherArray {
-  def apply[T <: CypherPrimitive](values: Seq[T])(implicit mixed: NotMixed[T]): CypherArray[T] = new CypherArray[T](values)
-  def unapply[T <: CypherPrimitive](arr: CypherArray[T]): Option[Seq[CypherPrimitive]] = Some(arr.value)
+  def apply[T <: CypherPrimitive](values: Seq[T])(implicit mixed: NotMixed[T]): CypherArray[T] = {
+    new CypherArray[T](values)
+  }
+  def unapply[T <: CypherPrimitive](arr: CypherArray[T]): Option[Seq[T]] = {
+    Some(arr.value)
+  }
 }
 
 @implicitNotFound(

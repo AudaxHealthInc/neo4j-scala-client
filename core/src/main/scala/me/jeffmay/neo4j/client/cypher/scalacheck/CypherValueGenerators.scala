@@ -1,8 +1,8 @@
 package me.jeffmay.neo4j.client.cypher.scalacheck
 
 import me.jeffmay.neo4j.client.cypher._
-import org.scalacheck.{Shrink, Gen, Arbitrary}
 import org.scalacheck.Shrink.shrink
+import org.scalacheck.{Arbitrary, Gen, Shrink}
 
 import scala.language.implicitConversions
 
@@ -106,23 +106,6 @@ trait CypherValueGenerators {
 
   lazy val genCypherValue: Gen[CypherValue] = {
     Gen.oneOf(genCypherPrimitive, genCypherArray)
-  }
-
-  /**
-    * Generates a valid field name where the first character is alphabetical and the remaining chars
-    * are alphanumeric.
-    */
-  def genFieldName: Gen[String] = Gen.identifier
-
-  def genFields: Gen[(String, CypherValue)] = Gen.zip(genFieldName, genCypherValue)
-
-  /**
-    * Generates a nested array at the specified depth and width.
-    */
-  lazy val genCypherProps: Gen[CypherProps] = {
-    for {
-      fields <- Gen.listOf(genFields)
-    } yield Map(fields: _*)
   }
 
   // Shrinks for better error output

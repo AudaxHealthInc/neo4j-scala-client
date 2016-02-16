@@ -1,7 +1,6 @@
 package me.jeffmay.neo4j.client
 
 import me.jeffmay.neo4j.client.Neo4jStatusCode.{Category, SubCategory}
-import play.api.libs.json._
 
 import scala.collection.mutable
 
@@ -671,21 +670,6 @@ case class Neo4jStatusCode(code: String, description: String, parent: Neo4jStatu
 }
 
 object Neo4jStatusCode {
-
-  /**
-    * Formats [[Neo4jStatusCode]]s as a String in Json using the full key path.
-    */
-  implicit object FormatStatusCodeAsString extends Format[Neo4jStatusCode] {
-    override def reads(json: JsValue): JsResult[Neo4jStatusCode] = {
-      json.validate[String].flatMap { code =>
-        findByCode(code) match {
-          case Some(status) => JsSuccess(status)
-          case None => JsError("error.expected.Neo4jStatusCode")
-        }
-      }
-    }
-    override def writes(status: Neo4jStatusCode): JsValue = JsString(status.code)
-  }
 
   /**
     * A map of all the full key paths to [[Neo4jStatusCode]]s.

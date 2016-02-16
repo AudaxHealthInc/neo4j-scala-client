@@ -1,10 +1,10 @@
 package me.jeffmay.neo4j.client
 
 import play.api.libs.json._
-import me.jeffmay.neo4j.client.cypher.Statement
+import me.jeffmay.neo4j.client.cypher.CypherStatement
 
 /**
-  * A result from a single [[Statement]].
+  * A result from a single [[CypherStatement]].
   *
   * @param columns a map of column names to index
   * @param data    the table of rows / columns of json values to be parsed
@@ -35,10 +35,6 @@ case class StatementResult(
   def rows: Iterable[StatementResultRow] = rowsIterator.toIterable
 }
 
-object StatementResult {
-  implicit val jsonWriter: Writes[StatementResult] = Json.writes[StatementResult]
-}
-
 /**
   * A thin wrapper around a row of data that allows access via a column name instead of an index.
   *
@@ -65,12 +61,8 @@ case class StatementResultRow(data: IndexedSeq[JsValue], columns: Map[String, In
   def toMap: Map[String, JsValue] = columns mapValues data
 }
 
-object StatementResultRow {
-  implicit val jsonWriter: Writes[StatementResultRow] = Json.writes[StatementResultRow]
-}
-
 /**
-  * Stats about the effects of executing the [[Statement]].
+  * Stats about the effects of executing the [[CypherStatement]].
   *
   * @param containsUpdates whether the statement contained updates
   * @param nodesCreated the number of nodes created
@@ -101,7 +93,6 @@ case class StatementResultStats(
 )
 
 object StatementResultStats {
-  implicit val jsonWriter: Writes[StatementResultStats] = Json.writes[StatementResultStats]
 
   val empty: StatementResultStats = {
     StatementResultStats(

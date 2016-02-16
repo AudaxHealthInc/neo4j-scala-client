@@ -1,7 +1,7 @@
-package me.jeffmay.neo4j.client.rest
+package me.jeffmay.neo4j.client.ws.json.rest
 
+import me.jeffmay.neo4j.client.cypher.CypherStatement
 import me.jeffmay.neo4j.client._
-import me.jeffmay.neo4j.client.cypher.Statement
 import org.joda.time.DateTime
 import play.api.libs.json._
 
@@ -30,6 +30,7 @@ private[client] case class RawTxnResponse(
   def neo4jErrors: Seq[Neo4jError] = errors.map(_.asNeo4jError)
 
   private def failToConvert(expected: String, reason: String, cause: Throwable = null): Try[Nothing] = {
+    import ws.json.debug._
     Failure(new IllegalArgumentException(
       s"Connect convert to $expected from: ${Json.prettyPrint(Json.toJson(this))}\n" +
         s"Reason: $reason",
@@ -37,30 +38,25 @@ private[client] case class RawTxnResponse(
     ))
   }
 
-  def asTxnResponse: Try[TxnResponse] = {
-    asOpenTxnResponse.recoverWith {
-      case openTxnEx: ConversionError =>
-        asCommitTxnResponse.recoverWith {
-          case commitedTxnEx: ConversionError =>
-            failToConvert(
-              "either OpenTxnResponse or CommitTxnResponse",
-              s"${openTxnEx.reason} and ${commitedTxnEx.reason}"
-            )
-        }
-    }
-  }
-
-  def asCommitTxnResponse: Try[CommittedTxnResponse] = {
+  private def asCommittedTxn[T](f: (Seq[StatementResult], Seq[Neo4jError]) => T): Try[T] = {
     if (transactionComplete)
-      Success(CommittedTxnResponse(results.map(_.asStatementResult), errors.map(_.asNeo4jError)))
+      Success(f(results.map(_.asStatementResult), errors.map(_.asNeo4jError)))
     else
       failToConvert(
-        "CommitTxnResponse",
+        "CommittedTxnResponse",
         "Transaction URL was empty and / or result contained errors that would trigger rollback"
       )
   }
 
-  def asOpenTxnResponse: Try[OpenedTxnResponse] = {
+  def asCommittedTxnResponse(statement: CypherStatement): Try[SingleCommittedTxnResponse] = {
+    asCommittedTxn(SingleCommittedTxnResponse(statement, _, _))
+  }
+
+  def asCommittedTxnResponse(statements: Seq[CypherStatement]): Try[CommittedTxnResponse] = {
+    asCommittedTxn(GenericCommittedTxnResponse(statements, _, _))
+  }
+
+  private def asOpenedTxn[T](f: (Seq[StatementResult], TxnInfo, Seq[Neo4jError]) => T): Try[T] = {
     for {
       commitUrl <- commit.map(Success(_)).getOrElse(failToConvert("OpenTxnResponse", "Missing commitUrl"))
       txn <- transaction.map(Success(_)).getOrElse(failToConvert("OpenTxnResponse", "Missing transaction"))
@@ -68,24 +64,21 @@ private[client] case class RawTxnResponse(
         case ex => failToConvert("OpenTxnResponse", "Failed to parse TxnRef", ex)
       }
     } yield {
-      OpenedTxnResponse(
-        results.map(_.asStatementResult),
-        TxnInfo(txnRef, txn.expires),
-        errors.map(_.asNeo4jError)
-      )
+      f(results.map(_.asStatementResult), TxnInfo(txnRef, txn.expires), errors.map(_.asNeo4jError))
     }
   }
-}
 
-private[client] object RawTxnResponse {
-  implicit val jsonReader: Reads[RawTxnResponse] = Json.reads[RawTxnResponse]
-  // Needed for debugging
-  implicit val jsonWriter: Writes[RawTxnResponse] = Json.writes[RawTxnResponse]
+  def asOpenedTxnResponse(statement: CypherStatement): Try[SingleOpenedTxnResponse] = {
+    asOpenedTxn(SingleOpenedTxnResponse(statement, _, _, _))
+  }
+
+  def asOpenedTxnResponse(statements: Seq[CypherStatement]): Try[OpenedTxnResponse] = {
+    asOpenedTxn(GenericOpenedTxnResponse(statements, _, _, _))
+  }
 }
 
 /**
   * The error code and message sent by the REST API.
-  *
   * @param code the status code parsed from the response
   * @param message the debug message to help find the problem with the request
   */
@@ -94,9 +87,6 @@ private[client] case class RawError(code: Neo4jStatusCode, message: String) {
 }
 
 private[client] object RawError {
-  implicit val jsonReader: Reads[RawError] = Json.reads[RawError]
-  // Needed for debugging
-  implicit val jsonWriter: Writes[RawError] = Json.writes[RawError]
   // Implicitly available as
   implicit def asStatementResultStats(raw: RawError): Neo4jError = raw.asNeo4jError
 }
@@ -106,14 +96,8 @@ private[client] object RawError {
   */
 private[client] case class RawTxnInfo(expires: DateTime)
 
-private[client] object RawTxnInfo {
-  implicit val jsonReader: Reads[RawTxnInfo] = Json.reads[RawTxnInfo]
-  // Needed for debugging
-  implicit val jsonWriter: Writes[RawTxnInfo] = Json.writes[RawTxnInfo]
-}
-
 /**
-  * Stats about the result of running a single [[Statement]].
+  * Stats about the result of running a single [[CypherStatement]].
   */
 private[client] case class RawResultStats(
   contains_updates: Boolean,
@@ -148,15 +132,12 @@ private[client] case class RawResultStats(
 }
 
 private[client] object RawResultStats {
-  implicit val jsonReader: Reads[RawResultStats] = Json.reads[RawResultStats]
-  // Needed for debugging
-  implicit val jsonWrites: Writes[RawResultStats] = Json.writes[RawResultStats]
   // Implicitly available as
   implicit def asStatementResultStats(raw: RawResultStats): StatementResultStats = raw.asStatementResultStats
 }
 
 /**
-  * The result of running a single [[Statement]]
+  * The result of running a single [[CypherStatement]]
   */
 private[client] case class RawStatementResult(
   columns: Seq[String],
@@ -169,9 +150,7 @@ private[client] case class RawStatementResult(
   }
 }
 private[client] object RawStatementResult {
-  implicit val jsonReader: Reads[RawStatementResult] = Json.reads[RawStatementResult]
-  // Needed for debugging
-  implicit val jsonWriter: Writes[RawStatementResult] = Json.writes[RawStatementResult]
+
   // Implicitly available as
   implicit def asStatementResult(raw: RawStatementResult): StatementResult = raw.asStatementResult
 }
@@ -180,9 +159,3 @@ private[client] object RawStatementResult {
   * A single row of a [[RawStatementResult]]
   */
 private[client] case class RawStatementRow(row: Seq[JsValue])
-
-private[client] object RawStatementRow {
-  implicit val jsonReader: Reads[RawStatementRow] = Json.reads[RawStatementRow]
-  // Needed for debugging
-  implicit val jsonWriter: Writes[RawStatementRow] = Json.writes[RawStatementRow]
-}

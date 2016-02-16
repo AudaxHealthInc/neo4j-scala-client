@@ -12,8 +12,9 @@ class CypherStringContextSpec extends WordSpec
     "allow param substitution in-place" in {
       val props = Cypher.params("props")
       val stmt = cypher"MATCH (n { id: ${props.id(1)}, name: ${props.name("x")} })"
-      val expectedTemplate = "MATCH (n { id: {props}.id, name: {props}.name })"
-      assertResult(expectedTemplate, "template did not render properly") {
+      assertResult(
+        s"MATCH (n { id: {${props.namespace}}.id, name: {${props.namespace}}.name })",
+        "template did not render properly") {
         stmt.template
       }
       val expectedProps = Cypher.props("id" -> 1, "name" -> "x")
@@ -26,8 +27,7 @@ class CypherStringContextSpec extends WordSpec
       forAll() { (value: CypherValue) =>
         val props = Cypher.params("props")
         val stmt = cypher"MATCH (n { id: ${props.id(value)} })"
-        val expectedTemplate = "MATCH (n { id: {props}.id })"
-        assertResult(expectedTemplate, "template did not render properly") {
+        assertResult(s"MATCH (n { id: {${props.namespace}}.id })", "template did not render properly") {
           stmt.template
         }
         val expectedProps = Cypher.props("id" -> value)
@@ -37,10 +37,84 @@ class CypherStringContextSpec extends WordSpec
       }
     }
 
+    "allow property object substitution" in {
+      val obj = Cypher.props("id" -> 1, "name" -> "x")
+      val props = Cypher.params("props", obj)
+      val stmt = cypher"MATCH (n $props)"
+      assertResult(s"MATCH (n { ${props.namespace} })", "template did not render properly") {
+        stmt.template
+      }
+      val expectedProps = Cypher.props("id" -> 1, "name" -> "x")
+      assertResult(Map("props" -> expectedProps)) {
+        stmt.parameters
+      }
+    }
+
+    "allow property substitution for any known cypher props" in {
+      forAll() { (obj: CypherProps) =>
+        val props = Cypher.params("props", obj)
+        val stmt = cypher"MATCH (n $props)"
+        assertResult(s"MATCH (n { ${props.namespace} })", "template did not render properly") {
+          stmt.template
+        }
+        assertResult(Map("props" -> obj)) {
+          stmt.parameters
+        }
+      }
+    }
+
+    "throw an exception when given two different objects for the same namespace" in {
+      val conflictingNamespace = "props"
+      val obj1 = Cypher.params(conflictingNamespace, Cypher.props("id" -> 1, "name" -> "x"))
+      val obj2 = Cypher.params(conflictingNamespace, Cypher.props("id" -> 2, "name" -> "y"))
+      val ex = intercept[ConflictingParameterObjectsException] {
+        cypher"MATCH (n $obj1) --> (m $obj2)"
+      }
+      assertResult(
+        s"MATCH (n { $conflictingNamespace }) --> (m { $conflictingNamespace })",
+        "template did not render properly") {
+        ex.template
+      }
+      assertResult(Seq(obj1.props, obj2.props)) {
+        ex.conflictingParams
+      }
+    }
+
+    "throw an exception mixing any mutable and immutable params with the same namespace in the same statement" in {
+      val conflictingNamespace = "props"
+      val obj = Cypher.params(conflictingNamespace, Cypher.props("id" -> 1, "name" -> "x"))
+      val conflicting = Cypher.params(conflictingNamespace)
+      val conflictingKey = "anything"
+      val conflictingValue = "doesn't matter"
+      val ex = intercept[MutatedParameterObjectException] {
+        cypher"MATCH (n $obj) --> (m { id: ${conflicting.applyDynamic(conflictingKey)(conflictingValue)} })"
+      }
+      assertResult(
+        s"MATCH (n { $conflictingNamespace }) --> (m { id: {$conflictingNamespace}.$conflictingKey })",
+        "template did not render properly") {
+        ex.template
+      }
+      assertResult(Seq(obj.props, Cypher.props(conflictingKey -> conflictingValue))) {
+        ex.conflictingParams
+      }
+    }
+
+    "allow literal substitution for identifiers" in {
+      val n = "n"
+      val nIdent = Cypher.ident("n")
+      val stmt = cypher"MATCH ($nIdent) RETURN $nIdent"
+      assertResult(s"MATCH ($n) RETURN $n", "template did not render properly") {
+        stmt.template
+      }
+      assertResult(Map.empty) {
+        stmt.parameters
+      }
+    }
+
     "allow literal substitution for labels" in {
-      val stmt = cypher"MATCH (n ${Cypher.label("EXPECTED")}) RETURN n"
-      val expectedTemplate = "MATCH (n :EXPECTED) RETURN n"
-      assertResult(expectedTemplate, "template did not render properly") {
+      val labelName = "EXPECTED"
+      val stmt = cypher"MATCH (n ${Cypher.label(labelName)}) RETURN n"
+      assertResult(s"MATCH (n :$labelName) RETURN n", "template did not render properly") {
         stmt.template
       }
       assertResult(Map.empty) {
@@ -49,8 +123,12 @@ class CypherStringContextSpec extends WordSpec
     }
 
     "throw an exception with all invalid cypher arguments included as suppressed exceptions" in {
-      val invalid = Cypher.label(":INVALID")
+      val invalidLabelName = ":INVALID"
+      val invalid = Cypher.label(invalidLabelName)
       val ex = intercept[InvalidCypherException](cypher"MATCH (n $invalid) RETURN n")
+      assertResult(Some("MATCH (n |INVALID[1]|) RETURN n")) {
+        ex.template
+      }
       assertResult(Seq(invalid)) {
         ex.causes
       }

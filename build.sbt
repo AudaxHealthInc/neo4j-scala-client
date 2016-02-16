@@ -46,7 +46,6 @@ lazy val commonSettings = commonRootSettings ++ Seq(
     compilerPlugin("org.psywerx.hairyfotr" %% "linter" % "0.1.12"),
     "com.typesafe.play" %% "play-json" % playVersion,  // TODO: Allow using other Json libraries
     "org.scalacheck" %% "scalacheck" % scalacheckVersion,
-    "org.scalactic" %% "scalactic" % scalatestVersion,
     "org.scalatest" %% "scalatest" % scalatestVersion % "test"
   ),
 

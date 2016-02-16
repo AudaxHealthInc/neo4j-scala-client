@@ -1,6 +1,6 @@
 package me.jeffmay.neo4j.client
 
-import me.jeffmay.neo4j.client.cypher.{Cypher, Statement}
+import me.jeffmay.neo4j.client.cypher.{Cypher, CypherStatement}
 import me.jeffmay.util.Namespace
 
 object FixtureQueries extends FixtureQueries
@@ -11,8 +11,8 @@ trait FixtureQueries {
    */
 
   object CreateNode {
-    def query(id: String, includeStats: Boolean = true)(implicit ns: Namespace): Statement = {
-      Statement(
+    def query(id: String, includeStats: Boolean = true)(implicit ns: Namespace): CypherStatement = {
+      CypherStatement(
         "CREATE (n { ns: {props}.ns, id: {props}.id })",
         Map("props" -> Cypher.props(
           "id" -> id,
@@ -27,8 +27,8 @@ trait FixtureQueries {
   }
 
   object RenameNode {
-    def query(id: String, newId: String, includeStats: Boolean = true)(implicit ns: Namespace): Statement = {
-      Statement(
+    def query(id: String, newId: String, includeStats: Boolean = true)(implicit ns: Namespace): CypherStatement = {
+      CypherStatement(
         "MATCH (n { ns: {props}.ns, id: {props}.id }) SET n.id = {new}.id",
         Map(
           "props" -> Cypher.props(
@@ -48,8 +48,8 @@ trait FixtureQueries {
   }
 
   object AddLabel {
-    def query(id: String, label: String, includeStats: Boolean = true)(implicit ns: Namespace): Statement = {
-      Statement(
+    def query(id: String, label: String, includeStats: Boolean = true)(implicit ns: Namespace): CypherStatement = {
+      CypherStatement(
         s"MATCH (n { ns: {props}.ns, id: {props}.id }) SET n ${Cypher.label(label).getOrThrow.template}",
         Map(
           "props" -> Cypher.props(
