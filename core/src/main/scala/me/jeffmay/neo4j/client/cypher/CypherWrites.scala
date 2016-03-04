@@ -59,8 +59,8 @@ trait DefaultCypherWrites {
   /**
     * Writes a traversable of values that can be written as [[CypherPrimitive]]s into a [[CypherArray]].
     */
-  implicit def writesTraversable[T, V <: CypherPrimitive: NotMixed](
-    implicit writer: CypherWrites[T, V]): CypherWrites[Traversable[T], CypherArray[V]] = {
+  implicit def writesTraversable[T, V <: CypherPrimitive](
+    implicit writer: CypherWrites[T, V], notMixed: NotMixed[V]): CypherWrites[Traversable[T], CypherArray[V]] = {
     new CypherWrites[Traversable[T], CypherArray[V]] {
       override def writes(values: Traversable[T]): CypherArray[V] = {
         CypherArray(values.map(writer.writes).toSeq)
