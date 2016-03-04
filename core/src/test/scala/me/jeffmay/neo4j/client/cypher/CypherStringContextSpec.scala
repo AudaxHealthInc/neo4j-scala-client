@@ -23,7 +23,7 @@ class CypherStringContextSpec extends WordSpec
       }
     }
 
-    "allow param substitution for any known type" in {
+    "allow param substitution for any CypherValue" in {
       forAll() { (value: CypherValue) =>
         val props = Cypher.params("props")
         val stmt = cypher"MATCH (n { id: ${props.id(value)} })"
@@ -37,14 +37,40 @@ class CypherStringContextSpec extends WordSpec
       }
     }
 
+    "allow param substitution for a writeable type" in {
+      import ExampleWriteable._
+      val value = ExampleWriteable("value")
+      val props = Cypher.params("props")
+      val stmt = cypher"MATCH (n { id: ${props.id(value)} })"
+      assertResult(s"MATCH (n { id: {${props.namespace}}.id })", "template did not render properly") {
+        stmt.template
+      }
+      val expectedProps = Cypher.props("id" -> value)
+      assertResult(Map("props" -> expectedProps)) {
+        stmt.parameters
+      }
+    }
+
+    "allow param substitution for a Traversable of writeable type values" in {
+      val values = Seq(1, 2, 3).map(n => ExampleWriteable(n.toString))
+      val expectedProps = Cypher.props("values" -> values)
+      val props = Cypher.params("props", expectedProps)
+      val stmt = cypher"MATCH (n) WHERE n IN ${props.values}"
+      assertResult(s"MATCH (n) WHERE n IN {${props.namespace}}.values", "template did not render properly") {
+        stmt.template
+      }
+      assertResult(Map("props" -> expectedProps)) {
+        stmt.parameters
+      }
+    }
+
     "allow property object substitution" in {
-      val obj = Cypher.props("id" -> 1, "name" -> "x")
-      val props = Cypher.params("props", obj)
+      val expectedProps = Cypher.props("id" -> 1, "name" -> "x")
+      val props = Cypher.params("props", expectedProps)
       val stmt = cypher"MATCH (n $props)"
       assertResult(s"MATCH (n { ${props.namespace} })", "template did not render properly") {
         stmt.template
       }
-      val expectedProps = Cypher.props("id" -> 1, "name" -> "x")
       assertResult(Map("props" -> expectedProps)) {
         stmt.parameters
       }
