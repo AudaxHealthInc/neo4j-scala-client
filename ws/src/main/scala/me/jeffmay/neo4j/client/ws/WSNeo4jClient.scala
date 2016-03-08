@@ -1,13 +1,12 @@
 package me.jeffmay.neo4j.client.ws
 
 import akka.actor.Scheduler
-import me.jeffmay.neo4j.client
 import me.jeffmay.neo4j.client._
 import me.jeffmay.neo4j.client.cypher.CypherStatement
-import me.jeffmay.neo4j.client.StatusCodeException
 import me.jeffmay.neo4j.client.ws.json.debug._
 import me.jeffmay.neo4j.client.ws.json.rest._
 import me.jeffmay.util.ws.{ProxyWSClient, TimeoutWSRequest}
+import org.slf4j.Logger
 import play.api.libs.json.{JsValue, Json}
 import play.api.libs.ws.{WSAuthScheme, WSClient, WSRequest, WSResponse}
 
@@ -18,6 +17,7 @@ import scala.util.Try
 class WSNeo4jClient(
   wsClient: WSClient,
   val config: Neo4jClientConfig,
+  logger: Logger,
   implicit private val scheduler: Scheduler,
   implicit private val executionContext: ExecutionContext
 ) extends Neo4jClient with Proxy {
@@ -31,10 +31,11 @@ class WSNeo4jClient(
   def copy(
     ws: WSClient = this.wsClient,
     config: Neo4jClientConfig = this.config,
+    logger: Logger = this.logger,
     scheduler: Scheduler = this.scheduler,
     executionContext: ExecutionContext = this.executionContext
   ) = {
-    new WSNeo4jClient(ws, config, scheduler, executionContext)
+    new WSNeo4jClient(ws, config, logger, scheduler, executionContext)
   }
 
   lazy val ws: WSClient = new ProxyWSClient(wsClient) {
@@ -76,9 +77,8 @@ class WSNeo4jClient(
   }
 
   private def requestTxn[T](url: String, statements: Seq[CypherStatement])(convert: RawTxnResponse => Try[T]): Future[T] = {
-    // TODO: Allow this to be configurable
     statements.foreach { stmt =>
-      println(s"Executing Cypher statement: ${Json.prettyPrint(Json.toJson(stmt))}")
+      logger.debug(s"Executing Cypher statement: ${Json.prettyPrint(Json.toJson(stmt))}")
     }
     val rawBody = RawStatementTransactionRequest.fromCypherStatements(statements)
     val jsonBody = Json.toJson(rawBody)
@@ -134,9 +134,10 @@ object WSNeo4jClient {
   def apply(
     ws: WSClient,
     config: Neo4jClientConfig,
+    logger: Logger,
     scheduler: Scheduler,
     executionContext: ExecutionContext
-  ) = new WSNeo4jClient(ws, config, scheduler, executionContext)
+  ) = new WSNeo4jClient(ws, config, logger, scheduler, executionContext)
 
   def flattenHeaders(headers: Map[String, Seq[String]]): Seq[(String, String)] = {
     headers.toSeq.flatMap {
@@ -144,7 +145,7 @@ object WSNeo4jClient {
     }
   }
 
-  def statusCodeException(request: WSRequest, requestBody: Option[JsValue], response: WSResponse, errors: Seq[Neo4jError]): client.StatusCodeException = {
+  def statusCodeException(request: WSRequest, requestBody: Option[JsValue], response: WSResponse, errors: Seq[Neo4jError]): StatusCodeException = {
     new StatusCodeException(
       request.method,
       request.url,
