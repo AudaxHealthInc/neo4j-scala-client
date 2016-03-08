@@ -80,7 +80,8 @@ lazy val ws = (project in file("ws")).settings(commonSettings ++ Seq(
   name := "neo4j-scala-client-ws",
 
   libraryDependencies ++= Seq(
-    "com.typesafe.play" %% "play-ws" % playVersion
+    "com.typesafe.play" %% "play-ws" % playVersion,
+    "org.mockito" % "mockito-core" % "1.10.19" % "test"
   ),
 
   // Cleanup after tests by default

@@ -3,6 +3,7 @@ package me.jeffmay.neo4j.client
 import me.jeffmay.neo4j.client.ws.{TestWSClient, TestWSNeo4jClient}
 import me.jeffmay.util.akka.TestAkkaScheduler
 import me.jeffmay.util.{RunHooksBlockingInOrder, RunStartupHooks}
+import org.slf4j.LoggerFactory
 import play.api.http.Status
 
 import scala.concurrent.duration._
@@ -19,6 +20,7 @@ class SetupBeforeTests extends RunStartupHooks(30.seconds, { implicit ec =>
   val client = new TestWSNeo4jClient(
     TestWSClient.TestWS,
     clientConfig,
+    LoggerFactory.getLogger(classOf[TestWSNeo4jClient]),
     TestAkkaScheduler(config = config)
   )
   Map(

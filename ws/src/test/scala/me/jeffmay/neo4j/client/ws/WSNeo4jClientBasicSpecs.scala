@@ -4,12 +4,17 @@ import me.jeffmay.neo4j.client._
 import me.jeffmay.neo4j.client.cypher.{Cypher, CypherStatement}
 import me.jeffmay.util.UniquePerClassNamespace
 import me.jeffmay.util.akka.TestGlobalAkka
+import org.mockito.Matchers._
+import org.mockito.Mockito._
 import org.scalatest._
+import org.scalatest.mock.MockitoSugar
+import org.slf4j.Logger
 
 import scala.concurrent.{ExecutionContext, Future}
 
 class WSNeo4jClientBasicSpecs extends fixture.AsyncWordSpec
   with Safety
+  with MockitoSugar
   with AssertResultStats
   with UniquePerClassNamespace {
 
@@ -18,9 +23,11 @@ class WSNeo4jClientBasicSpecs extends fixture.AsyncWordSpec
   override implicit def executionContext: ExecutionContext = ExecutionContext.global
 
   class FixtureParam extends UniqueNamespace with FixtureQueries {
+    val logger: Logger = mock[Logger]
     val client: Neo4jClient = new WSNeo4jClient(
       TestWSClient.TestWS,
       Neo4jClientConfig.fromConfig(TestGlobal.config),
+      logger,
       TestGlobalAkka.scheduler,
       executionContext
     )
@@ -76,6 +83,16 @@ class WSNeo4jClientBasicSpecs extends fixture.AsyncWordSpec
           assertResult(true, "should not encounter errors") {
             rsp.errors.isEmpty
           }
+        }
+      }
+
+      "log queries at debug level" in { fixture =>
+        import fixture._
+        for {
+          rsp <- client.openAndCommitTxn(CreateNode.query("logAtDebug", includeStats = false))
+        } yield {
+          verify(logger, times(1)).debug(any())
+          Succeeded
         }
       }
 
