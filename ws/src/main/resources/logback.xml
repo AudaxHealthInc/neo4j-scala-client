@@ -1,0 +1,26 @@
+<configuration>
+
+    <property name="rootLogLevel" value="${ROOT_LOG_LEVEL:-INFO}" />
+
+    <property name="FORMAT_LOGGER" value="%d %level %logger{15}" />
+    <property name="FORMAT_MESSAGE" value="%message%n%ex" />
+
+    <!-- Global logger -->
+    <appender name="global-console" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${FORMAT_LOGGER} - ${FORMAT_MESSAGE}</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="async-global-console" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="global-console" />
+    </appender>
+
+    <!--[ Loggers ]-->
+
+    <!-- Used for everything else -->
+    <root level="${rootLogLevel}">
+        <appender-ref ref="async-global-console" />
+    </root>
+
+</configuration>

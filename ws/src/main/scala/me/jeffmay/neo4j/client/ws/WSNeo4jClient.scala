@@ -3,7 +3,8 @@ package me.jeffmay.neo4j.client.ws
 import akka.actor.Scheduler
 import me.jeffmay.neo4j.client._
 import me.jeffmay.neo4j.client.cypher.CypherStatement
-import me.jeffmay.neo4j.client.ws.json.debug._
+import me.jeffmay.neo4j.client.ws.json.DebugFormats
+import me.jeffmay.neo4j.client.ws.json.rest.RestFormats._
 import me.jeffmay.neo4j.client.ws.json.rest._
 import me.jeffmay.util.ws.{ProxyWSClient, TimeoutWSRequest}
 import org.slf4j.Logger
@@ -77,6 +78,7 @@ class WSNeo4jClient(
   }
 
   private def requestTxn[T](url: String, statements: Seq[CypherStatement])(convert: RawTxnResponse => Try[T]): Future[T] = {
+    import DebugFormats._
     statements.foreach { stmt =>
       logger.debug(s"Executing Cypher statement: ${Json.prettyPrint(Json.toJson(stmt))}")
     }

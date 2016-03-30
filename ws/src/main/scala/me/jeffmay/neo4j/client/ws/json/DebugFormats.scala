@@ -1,12 +1,12 @@
-package me.jeffmay.neo4j.client.ws.json.debug
+package me.jeffmay.neo4j.client.ws.json
 
 import me.jeffmay.neo4j.client._
 import me.jeffmay.neo4j.client.cypher.CypherStatement
-import me.jeffmay.neo4j.client.ws.json.SharedFormats
 import me.jeffmay.neo4j.client.ws.json.rest._
 import play.api.libs.json._
 
-private[json] trait DebugFormats extends SharedFormats {
+object DebugFormats extends DebugFormats
+private[ws] trait DebugFormats extends SharedFormats {
 
   /*
    * Core model formats

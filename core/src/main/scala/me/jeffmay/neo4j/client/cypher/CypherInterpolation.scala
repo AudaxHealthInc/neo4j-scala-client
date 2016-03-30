@@ -16,11 +16,12 @@ class CypherStringContext(val sc: StringContext) extends AnyVal {
     *
     * @return a [[CypherStatement]] with the concatenated template and the the template and parameters
     *         of the [[CypherStatement]].
-    * @throws InvalidCypherException              if any of the args are [[CypherResultInvalid]]
+    * @throws CypherResultException               if any of the args are [[CypherResultInvalid]]
     * @throws ConflictingParameterFieldsException if two [[CypherParamField]]s share the same namespace and property name
     *                                             and the given values are different.
     */
   def cypher(args: CypherResult[CypherArg]*): CypherStatement = {
+
     // Build the literal query string
     var count: Int = 0
     val tmplParts: Seq[String] = args.map {
@@ -35,66 +36,56 @@ class CypherStringContext(val sc: StringContext) extends AnyVal {
       case invalid: CypherResultInvalid => invalid
     }
     if (invalidArgs.nonEmpty) {
-      throw new InvalidCypherException(
+      throw new CypherResultException(
         "Encountered errors at the |INVALID[#]| location markers in query.",
         Some(template),
         invalidArgs
       )
     }
 
-    // Separate the dynamic props from the static props
-    var dynamicFields = Seq.empty[CypherParamField]
-    var staticObjects = Seq.empty[CypherParamObject]
-    args foreach {
-      case CypherResultValid(p: CypherParamField)  =>
-        dynamicFields :+= p
-      case CypherResultValid(p: CypherParamObject) =>
-        staticObjects :+= p
-      case _ =>
+    // Collect all the field references
+    var foundParamFields = Map.empty[String, Set[String]]
+    var foundParamObjs = Map.empty[String, CypherProps]
+    val params = args.foldLeft(Map.empty.withDefaultValue(Map.empty: CypherProps): CypherParams) {
+      case (accParams, CypherResultValid(param: CypherParamArg)) =>
+        val ns = param.namespace
+        param match {
+          case obj: CypherParamObject =>
+            foundParamObjs.get(obj.namespace) match {
+              case Some(conflictingProps) if conflictingProps != obj.props =>
+                throw new ConflictingParameterObjectsException(ns, Seq(foundParamObjs(obj.namespace), obj.props), template)
+              case Some(duplicates) => // nothing to do, duplicate props already found
+              case _ =>
+                foundParamObjs += obj.namespace -> obj.props
+            }
+          case field: CypherParamField =>
+            foundParamFields.get(field.namespace) match {
+              case Some(props) =>
+                foundParamFields += field.namespace -> (props + field.id)
+              case None =>
+                foundParamFields += field.namespace -> Set(field.id)
+            }
+        }
+        val nextProps = param.toProps
+        accParams.get(ns) match {
+          case Some(prevProps) =>
+            // Merge non-conflicting properties / duplicates into same namespace
+            accParams + (ns -> CypherStatement.mergeNamespace(template, ns, prevProps, nextProps))
+          case None =>
+            // Add non-conflicting parameter namespace
+            accParams + (ns -> nextProps)
+        }
+      case (accParams, _) => accParams
     }
-    val objectsByNamespace = staticObjects.groupBy(_.namespace)
-    val fieldsByNamespace = dynamicFields.groupBy(_.namespace)
 
-    // Collect all the static parameter objects or throw an exception
-    // if any dynamic properties share the same namespace
-    val immutableParamObjects = objectsByNamespace
-      .map { case (namespace, objects) =>
-        if (fieldsByNamespace contains namespace) {
-          val conflictingParams = args.collect {
-            case CypherResultValid(p: CypherParamField) if p.namespace == namespace => Cypher.props(p.id -> p.value)
-            case CypherResultValid(p: CypherParamObject) if p.namespace == namespace => p.props
-          }
-          throw new MutatedParameterObjectException(namespace, conflictingParams, template)
-        }
-        else if (objects.toSet.size > 1) {
-          throw new ConflictingParameterObjectsException(namespace, objects.map(_.props), template)
-        }
-        else {
-          namespace -> objects.head.props
-        }
-      }
+    // Throw the first exception of any object references that conflict with field name references in the same namespace
+    for (conflictingNs <- foundParamObjs.keySet intersect foundParamFields.keySet) {
+      throw new MixedParamReferenceException(conflictingNs, foundParamFields(conflictingNs), template)
+    }
 
-    // Collect the dynamic parameter fields into properties objects
-    val mutableParamObjects = fieldsByNamespace
-      .map { case (namespace, fields) =>
-        val props: CypherProps = fields.groupBy(_.id).map { case (name, values) =>
-          // Allow duplicate values if they are equal
-          val conflictingValues = values.map(_.value)
-          if (conflictingValues.toSet.size > 1) {
-            throw new ConflictingParameterFieldsException(namespace, name, conflictingValues, template)
-          }
-          name -> values.head.value
-        }
-        namespace -> props
-      }
-
-    // We should not have any conflicts of namespace between static and dynamic properties
-    val params = immutableParamObjects ++ mutableParamObjects
-    assert(
-      params.size == immutableParamObjects.size + mutableParamObjects.size,
-      "Mutable and immutable param objects should never merge as " +
-        "combining the two should always throw a MutatedParameterObjectException"
-    )
-    CypherStatement(template, params)
+    // Return a statement that has been validated for missing or conflicting parameter values
+    val stmt = CypherStatement(template, params)
+    stmt.validate()
+    stmt
   }
 }

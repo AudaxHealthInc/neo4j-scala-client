@@ -9,21 +9,53 @@ object Cypher {
   /**
     * Convert the given value to a map of string keys to [[CypherValue]].
     */
-  def toProps[T](obj: T)(implicit writer: CypherWrites.Props[T]): CypherProps = writer writes obj
+  def toProps[T](obj: T)(implicit writer: CypherWrites.AsProps[T]): CypherProps = writer writes obj
 
   /**
-    * The canonical method to create a [[CypherLabel]] to insert into the cypher query string.
+    * Creates a [[CypherStatementFragment]] to insert into a cypher query string for matching on the properties
+    * of a node.
+    *
+    * @param param the param object to expand into properties
+    * @param chopAndIndent whether to chop down and indent the properties with the given number of spaces
+    *
+    * @return a fragment of a [[CypherStatement]] that can be embedded into the properties selector of a node
+    */
+  def expand(param: ImmutableParam, chopAndIndent: Option[Int] = None): CypherStatementFragment = {
+    val propTemplates = param.props.map {
+      case (k, v) => s"$k: {${param.namespace}}.$k"
+    }
+    val template = chopAndIndent match {
+      case Some(indentWidth) =>
+        val shim = new String(Array.fill(indentWidth)(' '))
+        propTemplates.mkString(s",\n$shim")
+      case None =>
+        propTemplates.mkString(", ")
+    }
+    CypherStatementFragment(CypherStatement(template, Map(param.namespace -> param.props)))
+  }
+
+  /**
+    * Creates a [[CypherLabel]] to insert into a cypher query string.
     *
     * @return A [[CypherResult]] which can either contain the label or an error.
     */
   def label(name: String): CypherResult[CypherLabel] = CypherLabel(name)
 
   /**
-    * The canonical method to create a [[CypherIdentifier]] to insert into a cypher query string.
+    * Creates a [[CypherIdentifier]] to insert into a cypher query string.
     *
     * @return a [[CypherResult]] which can either contain the identifier or an error
     */
   def ident(name: String): CypherResult[CypherIdentifier] = CypherIdentifier(name)
+
+  /**
+    * Creates a [[CypherParamObject]] to insert into a cypher query string.
+    *
+    * @return always successfully returns a [[CypherParamObject]]
+    */
+  @deprecated("Use Cypher.obj(Cypher.params(namespace, props))", "0.8.0")
+  def obj(namespace: String, props: CypherProps): CypherParamObject = CypherParamObject(namespace, props)
+  def obj(params: ImmutableParam): CypherParamObject = CypherParamObject(params.namespace, params.props)
 
   // TODO: Use Li Haoyi's sourcecode macros to get the name of the variable this is assigned to
   //  def params(): Params = new Params("props", Map.empty)
@@ -31,6 +63,8 @@ object Cypher {
   /**
     * @see [[DynamicMutableParam]]
     */
+  def param(namespace: String): DynamicMutableParam = new DynamicMutableParam(namespace)
+  @deprecated("Use Cypher.param instead. A parameter is a single entry in the CypherParams map, so singular is preferred.", "0.7.0")
   def params(namespace: String): DynamicMutableParam = new DynamicMutableParam(namespace)
 
   /**
@@ -39,6 +73,7 @@ object Cypher {
     * @param namespace the namespace to which all parameters inserted by this class share
     */
   sealed abstract class Param(val namespace: String) {
+    require(!namespace.isEmpty, "Cypher.param() namespace cannot be empty string")
     def isMutable: Boolean
     protected def __clsName: String
     override def toString: String = s"${__clsName}(namespace = $namespace)"
@@ -75,7 +110,7 @@ object Cypher {
       *       in an error.
       * @return a valid [[CypherParamField]]
       */
-    def applyDynamic[T](name: String)(value: T)(implicit writer: CypherWrites.Value[T]): CypherArg = {
+    def applyDynamic[T](name: String)(value: T)(implicit writer: CypherWrites.AsValue[T]): CypherArg = {
       val cypherValue = writer.writes(value)
       new CypherParamField(namespace, name, cypherValue)
     }
@@ -84,6 +119,8 @@ object Cypher {
   /**
     * @see [[DynamicImmutableParam]]
     */
+  def param(namespace: String, props: CypherProps): DynamicImmutableParam = new DynamicImmutableParam(namespace, props)
+  @deprecated("Use Cypher.param instead. A parameter is a single entry in the CypherParams map, so singular is preferred.", "0.7.0")
   def params(namespace: String, props: CypherProps): DynamicImmutableParam = new DynamicImmutableParam(namespace, props)
 
   /**
@@ -95,6 +132,7 @@ object Cypher {
     */
   sealed abstract class ImmutableParam(namespace: String, val props: CypherProps)(implicit showProps: Show[CypherProps])
     extends Param(namespace) with Proxy {
+    def toParams: CypherParams = Map(namespace -> props)
     final override def isMutable: Boolean = false
     override def self: Any = (namespace, props)
     override def toString: String = s"${__clsName}(namespace = $namespace, props = ${showProps show props})"
@@ -147,7 +185,7 @@ object Cypher {
     def value: CypherValue
   }
   private case class CypherValueWrapperImpl(value: CypherValue) extends CypherValueWrapper
-  implicit def toCypherValueWrapper[T](field: T)(implicit w: CypherWrites.Value[T]): CypherValueWrapper = {
+  implicit def toCypherValueWrapper[T](field: T)(implicit w: CypherWrites.AsValue[T]): CypherValueWrapper = {
     CypherValueWrapperImpl(w.writes(field))
   }
 }

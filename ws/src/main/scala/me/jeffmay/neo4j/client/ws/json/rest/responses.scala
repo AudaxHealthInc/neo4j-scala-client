@@ -1,7 +1,8 @@
 package me.jeffmay.neo4j.client.ws.json.rest
 
-import me.jeffmay.neo4j.client.cypher.CypherStatement
 import me.jeffmay.neo4j.client._
+import me.jeffmay.neo4j.client.cypher.CypherStatement
+import me.jeffmay.neo4j.client.ws.json.DebugFormats
 import org.joda.time.DateTime
 import play.api.libs.json._
 
@@ -30,7 +31,7 @@ private[client] case class RawTxnResponse(
   def neo4jErrors: Seq[Neo4jError] = errors.map(_.asNeo4jError)
 
   private def failToConvert(expected: String, reason: String, cause: Throwable = null): Try[Nothing] = {
-    import ws.json.debug._
+    import DebugFormats._
     Failure(new IllegalArgumentException(
       s"Connect convert to $expected from: ${Json.prettyPrint(Json.toJson(this))}\n" +
         s"Reason: $reason",
@@ -79,6 +80,7 @@ private[client] case class RawTxnResponse(
 
 /**
   * The error code and message sent by the REST API.
+ *
   * @param code the status code parsed from the response
   * @param message the debug message to help find the problem with the request
   */
