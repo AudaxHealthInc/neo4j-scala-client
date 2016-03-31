@@ -16,5 +16,11 @@ package object cypher extends CypherInterpolation with DefaultCypherShows {
   type Statement = CypherStatement
   @deprecated("Use CypherStatement instead", "0.4.0")
   val Statement = CypherStatement
+
+  @deprecated("Use CypherResultException instead", "0.7.0")
+  type InvalidCypherException = CypherResultException
+
+  @deprecated("Use MixedParamReferenceException instead", "0.7.0")
+  type MutatedParameterObjectException = MixedParamReferenceException
 }
 

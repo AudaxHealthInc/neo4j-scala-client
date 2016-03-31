@@ -1,6 +1,6 @@
 package me.jeffmay.neo4j.client.cypher
 
-import me.jeffmay.neo4j.client.cypher.Cypher.ImmutableParam
+import me.jeffmay.neo4j.client.cypher.Cypher.Param
 
 import scala.language.implicitConversions
 import scala.util.Try
@@ -25,13 +25,20 @@ object CypherResult {
   /**
     * All [[CypherArg]]s are valid [[CypherArg]]s.
     */
-  implicit def valid[T <: CypherArg](arg: T): CypherResultValid[T] = CypherResultValid(arg)
+  implicit def validResult[T <: CypherArg](arg: T): CypherResultValid[T] = CypherResultValid(arg)
 
   /**
-    * All [[ImmutableParam]]s are valid [[CypherArg]]s.
+    * All [[Param]]s can be used as [[CypherIdentifier]]s with the same name as the namespace.
     */
-  implicit def immutableParams(arg: ImmutableParam): CypherResultValid[CypherParamObject] = {
-    CypherResultValid(new CypherParamObject(arg.namespace, arg.props))
+  implicit def paramIdentResult(arg: Param): CypherResult[CypherIdentifier] = {
+    CypherIdentifier(arg.namespace)
+  }
+
+  /**
+    * All [[CypherStatement]]s can be embedded into other statements as [[CypherStatementFragment]]s.
+    */
+  implicit def embedCypherStatement(stmt: CypherStatement): CypherResultValid[CypherStatementFragment] = {
+    CypherResultValid(CypherStatementFragment(stmt))
   }
 }
 
@@ -53,7 +60,7 @@ case class CypherResultValid[+T <: CypherArg](result: T) extends CypherResult[T]
   */
 case class CypherResultInvalid(result: InvalidCypherArg) extends CypherResult[Nothing] {
   // Construct the exception on instantiation to insure that the stack-trace captures where the failure occurs.
-  val exception: Throwable = new InvalidCypherException(result.message, result.template)
+  val exception: Throwable = new CypherResultException(result.message, result.template)
   final override def isValid: Boolean = false
   final override def getOrThrow: Nothing = throw exception
 }

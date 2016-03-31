@@ -1,6 +1,7 @@
 package me.jeffmay.neo4j.client.ws.json.rest
 
 import me.jeffmay.neo4j.client.cypher.{CypherProps, CypherStatement}
+import me.jeffmay.neo4j.client.ws.json.rest.RestFormats._
 import play.api.libs.json.{JsObject, OWrites}
 
 import scala.language.implicitConversions

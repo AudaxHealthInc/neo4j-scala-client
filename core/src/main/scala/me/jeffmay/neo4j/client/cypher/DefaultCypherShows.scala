@@ -43,15 +43,22 @@ trait DefaultCypherShows {
     case v: CypherByte => Show[CypherByte].show(v)
   }
 
-  implicit def showCypherArray[T <: CypherPrimitive](implicit showCypherPrimitive: Show[T]): Show[CypherArray[T]] = {
-    Show.show { case CypherArray(values) =>
-      val asStrings = values.map(showCypherPrimitive.show)
+  implicit def showCypherSeq[T <: CypherValue](implicit showCypherValue: Show[CypherValue]): Show[Seq[T]] = {
+    Show.show { values =>
+      val asStrings = values.map(showCypherValue.show)
       if (separateWithNewLines(asStrings)) {
         "[\n" + asStrings.map("  " + _).mkString(",\n") + "\n]"
       }
       else {
         s"[ ${asStrings.mkString(", ")} ]"
       }
+    }
+  }
+
+  implicit def showCypherArray[T <: CypherPrimitive](implicit showCypherPrimitive: Show[CypherPrimitive]): Show[CypherArray[T]] = {
+    val showSeq = showCypherSeq[T]
+    Show.show { case CypherArray(values) =>
+      showSeq.show(values)
     }
   }
 
@@ -72,6 +79,18 @@ trait DefaultCypherShows {
       }
       else {
         s"CypherProps { ${asStrings.mkString(", ")} }"
+      }
+    }
+  }
+
+  implicit def showCypherParams(implicit showProps: Show[CypherProps]): Show[CypherParams] = {
+    Show.show { params =>
+      val asStrings = params.map { case (k, props) => "\"" + k + "\": " + showProps.show(props) }
+      if (separateWithNewLines(asStrings)) {
+        s"CypherParams {\n${asStrings.map("  " + _).mkString(",\n")}\n}"
+      }
+      else {
+        s"CypherParams { ${asStrings.mkString(", ")} }"
       }
     }
   }

@@ -1,8 +1,8 @@
 package me.jeffmay.neo4j.client
 
-import org.scalatest.{Matchers, WordSpec}
+import me.jeffmay.neo4j.client.scalacheck.StatusCodeGenerators._
 import org.scalatest.prop.GeneratorDrivenPropertyChecks
-import scalacheck._
+import org.scalatest.{Matchers, WordSpec}
 
 class Neo4jStatusCodeSpecs extends WordSpec
   with Matchers
