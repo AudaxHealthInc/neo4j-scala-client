@@ -7,12 +7,13 @@ import scala.collection.mutable
 /**
   * @see <a href="http://neo4j.com/docs/stable/status-codes.html">Status Codes Documentation</a>
   */
-object StatusCodes {
+object StatusCodes extends StatusCodes
+class StatusCodes {
 
   sealed abstract class NeoClassification(override val name: String)
     extends SubCategory {
 
-    override final def parent: Neo4jStatusCode.Category = StatusCodes.Neo
+    override final def parent: Neo4jStatusCode.Category = Neo
 
     override lazy val statusCodes: Seq[Neo4jStatusCode] = subcategories.flatMap(_.statusCodes)
   }
@@ -24,7 +25,7 @@ object StatusCodes {
 
     private[this] val _codes = new mutable.ListBuffer[Neo4jStatusCode]()
 
-    override final def statusCodes: Seq[Neo4jStatusCode] = _codes
+    override lazy val statusCodes: Seq[Neo4jStatusCode] = _codes.toSeq
 
     protected def hasChild(status: Neo4jStatusCode): Neo4jStatusCode = {
       _codes.append(status)
@@ -49,7 +50,7 @@ object StatusCodes {
       TransientError
     )
 
-    override val statusCodes: Seq[Neo4jStatusCode] = subcategories.flatMap(_.statusCodes)
+    override lazy val statusCodes: Seq[Neo4jStatusCode] = subcategories.flatMap(_.statusCodes)
 
     /**
       * The client sent a bad request - changing the request might yield a successful outcome.
