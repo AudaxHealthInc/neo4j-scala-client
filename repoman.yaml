@@ -1,4 +1,6 @@
 ---
 repository:
-  status: active
+  status: inactive
   team: Core
+  jira: HALP
+  live: never
